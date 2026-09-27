@@ -6,6 +6,8 @@
       "testCaseId": "TC-001-01",
       "scenario": "Log in with valid credentials",
       "type": "Happy Path",
+      "priority": "High",
+      "priorityReason": "core flow: every user logs in",
       "criteria": [
         1
       ],
@@ -24,6 +26,8 @@
       "testCaseId": "TC-001-02",
       "scenario": "Log in with a username that has different letter case",
       "type": "Happy Path",
+      "priority": "Low",
+      "priorityReason": "convenience only; no security risk",
       "criteria": [
         1
       ],
@@ -42,6 +46,8 @@
       "testCaseId": "TC-001-03",
       "scenario": "Log in with a wrong password",
       "type": "Negative",
+      "priority": "High",
+      "priorityReason": "security: wrong passwords must never get in",
       "criteria": [
         2
       ],
@@ -60,6 +66,8 @@
       "testCaseId": "TC-001-04",
       "scenario": "Log in with an unregistered username",
       "type": "Negative",
+      "priority": "Medium",
+      "priorityReason": "must not reveal which usernames exist",
       "criteria": [
         2
       ],
@@ -78,6 +86,8 @@
       "testCaseId": "TC-001-05",
       "scenario": "Submit the form with empty fields",
       "type": "Negative",
+      "priority": "Low",
+      "priorityReason": "basic form validation",
       "criteria": [
         2
       ],
@@ -94,6 +104,8 @@
       "testCaseId": "TC-001-06",
       "scenario": "Account locks after 5 failed attempts",
       "type": "Negative",
+      "priority": "High",
+      "priorityReason": "security: stops password-guessing attacks",
       "criteria": [
         3
       ],
@@ -111,6 +123,8 @@
       "testCaseId": "TC-001-07",
       "scenario": "4 failed attempts followed by a successful login",
       "type": "Edge Case",
+      "priority": "Medium",
+      "priorityReason": "boundary just below the lockout limit",
       "criteria": [
         1,
         3
@@ -129,6 +143,8 @@
       "testCaseId": "TC-001-08",
       "scenario": "Failed-attempt counter does not carry over after a successful login",
       "type": "Edge Case",
+      "priority": "Medium",
+      "priorityReason": "counter reset rule could lock users out wrongly",
       "criteria": [
         3
       ],
@@ -146,6 +162,8 @@
       "testCaseId": "TC-001-09",
       "scenario": "Password with leading/trailing whitespace",
       "type": "Edge Case",
+      "priority": "Low",
+      "priorityReason": "rare input; low impact",
       "criteria": [
         2
       ],

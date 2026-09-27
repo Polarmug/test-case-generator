@@ -1,6 +1,6 @@
 # AI Test-Case Generator
 
-Enter a user story and its acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case) → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV or Gherkin (`.feature`, Given / When / Then, tagged by test case ID, type and acceptance criterion).
+Enter a user story and its acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case), each with a **priority** (High / Medium / Low, with a one-line reason) so you know what to run first, → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV or Gherkin (`.feature`, Given / When / Then, tagged by test case ID, type and acceptance criterion).
 
 ## Input
 

@@ -9,6 +9,10 @@ Rules:
 - Generate 8 to 12 test cases, with at least 2 of each type
 - Cover happy path, negative cases, and edge cases (boundaries, empty/invalid input, limits, timing)
 - "type" must be exactly one of: "Happy Path", "Negative", "Edge Case"
+- "priority" must be exactly one of: "High", "Medium", "Low", based on the risk if this test failed in production:
+  High = security, money, data loss or the core flow is broken; Medium = an important rule or boundary; Low = cosmetic or rare
+- "priorityReason" explains the priority in a few words, e.g. "money could be lost"
+- Not every test case can be High; use High for the few that must run first
 - "criteria" lists the numbers of the acceptance criteria the test case verifies
 - Every acceptance criterion must be verified by at least one test case
 - Test Case ID format: TC-[StoryID]-[two-digit number]
@@ -23,6 +27,8 @@ Output JSON format:
       "testCaseId": "TC-001-01",
       "scenario": "short description",
       "type": "Happy Path",
+      "priority": "High",
+      "priorityReason": "core flow for every user",
       "criteria": [1],
       "preconditions": "...",
       "steps": ["step 1", "step 2"],
@@ -337,6 +343,14 @@ function normalizeType(value) {
   return 'Other';
 }
 
+// Anything the model doesn't label clearly becomes Medium.
+function normalizePriority(value) {
+  const p = str(value).toLowerCase();
+  if (p.startsWith('high') || p.startsWith('critical') || p === 'p1') return 'High';
+  if (p.startsWith('low') || p.startsWith('minor') || p === 'p3') return 'Low';
+  return 'Medium';
+}
+
 function normalizeSteps(value) {
   const steps = Array.isArray(value) ? value.map(str) : str(value).split(/\r?\n|;\s*/);
   return steps.map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
@@ -361,6 +375,8 @@ function normalize(raw, { storyId, criteria }) {
       testCaseId: `TC-${storyId}-${String(i + 1).padStart(2, '0')}`,
       scenario: str(tc.scenario),
       type: normalizeType(tc.type),
+      priority: normalizePriority(tc.priority),
+      priorityReason: str(tc.priorityReason),
       criteria: normalizeCriteriaRefs(tc.criteria, criteria.length),
       preconditions: str(tc.preconditions),
       steps: normalizeSteps(tc.steps),

@@ -4,6 +4,7 @@ export interface GherkinTestCase {
   testCaseId: string;
   scenario: string;
   type: string;
+  priority?: string;
   criteria?: number[];
   preconditions: string;
   steps: string[];
@@ -55,7 +56,12 @@ export function toGherkin({ storyId, story, criteria, testCases }: GherkinInput)
 
   for (const tc of testCases) {
     const idTag = '@' + tc.testCaseId.replace(/[^A-Za-z0-9_-]+/g, '-');
-    const tags = [idTag, tag(tc.type), ...(tc.criteria ?? []).map(n => `@AC${n}`)];
+    const tags = [
+      idTag,
+      tag(tc.type),
+      ...(tc.priority ? [tag(`priority ${tc.priority}`)] : []),
+      ...(tc.criteria ?? []).map(n => `@AC${n}`)
+    ];
     lines.push('', `  ${tags.join(' ')}`, `  Scenario: ${oneLine(tc.scenario) || tc.testCaseId}`);
 
     if (tc.preconditions.trim()) lines.push(`    Given ${lowerFirst(oneLine(tc.preconditions))}`);

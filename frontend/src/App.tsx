@@ -4,11 +4,14 @@ import { toGherkin } from './gherkin';
 import './App.css';
 
 type TestType = 'Happy Path' | 'Negative' | 'Edge Case' | 'Other';
+type Priority = 'High' | 'Medium' | 'Low';
 
 interface TestCase {
   testCaseId: string;
   scenario: string;
   type: TestType;
+  priority: Priority;
+  priorityReason: string;
   criteria: number[]; // 1-based numbers of the acceptance criteria this test case verifies
   preconditions: string;
   steps: string[];
@@ -23,6 +26,7 @@ interface Draft {
   index: number;
   scenario: string;
   type: TestType;
+  priority: Priority;
   preconditions: string;
   stepsText: string;
   testData: string;
@@ -57,6 +61,21 @@ function downloadFile(content: string, filename: string, type: string) {
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 const TYPES: TestType[] = ['Happy Path', 'Negative', 'Edge Case'];
+
+const PRIORITIES: Priority[] = ['High', 'Medium', 'Low'];
+
+// Sort rank; anything unexpected sorts with Medium.
+const priorityRank = (p: string) => {
+  const rank = PRIORITIES.indexOf(p as Priority);
+  return rank === -1 ? 1 : rank;
+};
+
+// High -> Medium -> Low, keeping the original order within each priority.
+const byPriority = <T extends { priority: string }>(list: T[]): T[] =>
+  list
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => priorityRank(a.item.priority) - priorityRank(b.item.priority) || a.index - b.index)
+    .map(({ item }) => item);
 
 const PROVIDER_LABELS: Record<string, string> = {
   bob: 'IBM Bob',
@@ -165,6 +184,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<TestType | null>(null);
+  const [highOnly, setHighOnly] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -189,17 +209,22 @@ function App() {
   const coverage = result?.coverage ?? [];
   const resultStoryId = result?.storyId || testCases[0]?.storyId || '001';
   // Keep each row's position in the full list so edits/deletes work while a filter is on.
+  // Rows are shown High -> Medium -> Low, keeping the generated order within each priority.
   const visible = testCases
     .map((tc, index) => ({ tc, index }))
-    .filter(({ tc }) => !filter || tc.type === filter);
+    .filter(({ tc }) => !filter || tc.type === filter)
+    .filter(({ tc }) => !highOnly || tc.priority === 'High')
+    .sort((a, b) => priorityRank(a.tc.priority) - priorityRank(b.tc.priority) || a.index - b.index);
   const coveredCount = coverage.filter(c => c.testCaseIds.length > 0).length;
   const countOf = (type: TestType) => testCases.filter(tc => tc.type === type).length;
+  const highCount = testCases.filter(tc => tc.priority === 'High').length;
 
   const generate = async () => {
     if (!canGenerate) return;
     setLoading(true);
     setError('');
     setFilter(null);
+    setHighOnly(false);
     setHighlighted(null);
     setDraft(null);
     setLastDeleted(null);
@@ -222,6 +247,7 @@ function App() {
 
   const jumpTo = (id: string) => {
     setFilter(null);
+    setHighOnly(false);
     setHighlighted(id);
     setTimeout(() => {
       document.getElementById(`row-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -234,6 +260,7 @@ function App() {
       index,
       scenario: tc.scenario,
       type: tc.type,
+      priority: tc.priority,
       preconditions: tc.preconditions,
       stepsText: tc.steps.join('\n'),
       testData: tc.testData,
@@ -275,9 +302,12 @@ function App() {
   };
 
   const exportCSV = () => {
-    const headers = ['Test Case ID', 'Scenario', 'Type', 'Covers', 'Preconditions', 'Steps', 'Test Data', 'Expected Result', 'Story ID'];
-    const rows = testCases.map(tc => [
-      tc.testCaseId, tc.scenario, tc.type, criteriaLabel(tc.criteria ?? []), tc.preconditions,
+    const headers = [
+      'Test Case ID', 'Scenario', 'Type', 'Priority', 'Priority Reason', 'Covers', 'Preconditions', 'Steps',
+      'Test Data', 'Expected Result', 'Story ID'
+    ];
+    const rows = byPriority(testCases).map(tc => [
+      tc.testCaseId, tc.scenario, tc.type, tc.priority, tc.priorityReason, criteriaLabel(tc.criteria ?? []), tc.preconditions,
       tc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n'), tc.testData, tc.expectedResult, tc.storyId
     ]);
     const escape = (c: unknown) => `"${String(c ?? '').replace(/"/g, '""')}"`;
@@ -291,7 +321,7 @@ function App() {
       storyId: resultStoryId,
       story: result?.story ?? '',
       criteria: coverage.map(c => c.criterion),
-      testCases
+      testCases: byPriority(testCases)
     });
     downloadFile(feature, `test-cases-${resultStoryId}.feature`, 'text/plain;charset=utf-8');
   };
@@ -391,7 +421,10 @@ function App() {
       {testCases.length > 0 && (
         <>
           <section className="summary">
-            <button className={`stat ${filter === null ? 'active' : ''}`} onClick={() => setFilter(null)}>
+            <button
+              className={`stat ${filter === null && !highOnly ? 'active' : ''}`}
+              onClick={() => { setFilter(null); setHighOnly(false); }}
+            >
               <strong>{testCases.length}</strong> total
             </button>
             {TYPES.map(type => (
@@ -403,6 +436,13 @@ function App() {
                 <strong>{countOf(type)}</strong> {type}
               </button>
             ))}
+            <button
+              className={`stat stat-priority-high ${highOnly ? 'active' : ''}`}
+              onClick={() => setHighOnly(!highOnly)}
+              title="Show only High priority test cases: run these first"
+            >
+              <strong>{highCount}</strong> High priority
+            </button>
             {!result?.fallback && <span className="elapsed">Generated in {elapsed.toFixed(1)}s</span>}
           </section>
 
@@ -446,7 +486,7 @@ function App() {
                   <tr>
                     <th>ID</th>
                     <th>Scenario</th>
-                    <th>Type</th>
+                    <th>Type / priority</th>
                     <th>Steps</th>
                     <th>Test data</th>
                     <th>Expected result</th>
@@ -481,6 +521,14 @@ function App() {
                             onChange={e => setDraft({ ...draft, type: e.target.value as TestType })}
                           >
                             {[...TYPES, 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <label className="field-label" htmlFor="edit-priority">Priority</label>
+                          <select
+                            id="edit-priority"
+                            value={draft.priority}
+                            onChange={e => setDraft({ ...draft, priority: e.target.value as Priority })}
+                          >
+                            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                           </select>
                         </td>
                         <td data-label="Steps">
@@ -529,8 +577,19 @@ function App() {
                           {tc.preconditions && (
                             <div className="sub"><span>Preconditions:</span> {tc.preconditions}</div>
                           )}
+                          {tc.priorityReason && (
+                            <div className="sub"><span>Why {tc.priority}:</span> {tc.priorityReason}</div>
+                          )}
                         </td>
-                        <td className="type-cell"><span className={`badge badge-${slug(tc.type)}`}>{tc.type}</span></td>
+                        <td className="type-cell">
+                          <span className={`badge badge-${slug(tc.type)}`}>{tc.type}</span>
+                          <span
+                            className={`priority priority-${(tc.priority ?? 'Medium').toLowerCase()}`}
+                            title={tc.priorityReason || undefined}
+                          >
+                            {tc.priority ?? 'Medium'}
+                          </span>
+                        </td>
                         <td data-label="Steps">
                           <ol className="steps">
                             {tc.steps.map((s, i) => <li key={i}>{s}</li>)}

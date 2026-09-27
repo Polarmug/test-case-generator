@@ -70,6 +70,22 @@ test('normalize marks criteria with no test case as uncovered', () => {
   assert.deepStrictEqual(coverage[1].testCaseIds, []);
 });
 
+test('normalize reads priority and reason, defaulting unclear values to Medium', () => {
+  const { testCases } = normalize({
+    testCases: [
+      { priority: 'High', priorityReason: ' money could be lost ' },
+      { priority: 'critical' },
+      { priority: 'low' },
+      { priority: 'P3' },
+      { priority: 'urgent-ish' },
+      {}
+    ]
+  }, input);
+  assert.deepStrictEqual(testCases.map(tc => tc.priority), ['High', 'High', 'Low', 'Low', 'Medium', 'Medium']);
+  assert.strictEqual(testCases[0].priorityReason, 'money could be lost');
+  assert.strictEqual(testCases[5].priorityReason, '');
+});
+
 test('normalize handles missing testCases', () => {
   const empty = normalize({}, input);
   assert.deepStrictEqual(empty.testCases, []);

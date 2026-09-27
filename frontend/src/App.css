@@ -821,3 +821,70 @@ textarea::placeholder {
 .field textarea {
   font-family: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* ---------- Priority ---------- */
+
+.type-cell .priority {
+  display: block;
+  width: fit-content;
+  margin-top: 6px;
+}
+
+.priority {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Solid for High so it stands out from the soft type badges. */
+.priority-high {
+  background: var(--negative);
+  color: #fff;
+}
+
+.priority-medium {
+  background: var(--surface);
+  color: var(--edge);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+.priority-low {
+  background: var(--other-soft);
+  color: var(--other);
+}
+
+.stat-priority-high strong {
+  color: var(--negative);
+}
+
+.stat-priority-high.active {
+  border-color: var(--negative);
+  box-shadow: inset 0 0 0 1px var(--negative);
+  background: var(--negative-soft);
+}
+
+tr.editing select + .field-label {
+  margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+  /* On phone cards the type and priority badges sit side by side at the top right. */
+  td.type-cell {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .type-cell .priority {
+    margin-top: 0;
+  }
+
+  tr.editing td.type-cell {
+    display: block;
+  }
+}
