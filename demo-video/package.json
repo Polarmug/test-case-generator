@@ -1,0 +1,13 @@
+{
+  "name": "demo-video",
+  "private": true,
+  "description": "Records a narrated demo video of the AI Test-Case Generator with Puppeteer, an AI voice and ffmpeg",
+  "scripts": {
+    "record": "node record.js",
+    "ad": "node ad.js",
+    "combine": "node combine.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

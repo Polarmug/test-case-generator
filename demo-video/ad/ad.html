@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Test-Case Generator: intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Same colours as the website's dark mode */
+    --paper: #12151c;
+    --surface: #1c212b;
+    --ink: #e6e9ef;
+    --muted: #9aa4b5;
+    --border: #2e3544;
+    --accent: #4589ff;
+    --danger: #ff7b7b;
+    --danger-solid: #da1e28;
+    --ok: #42be65;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #1a1f29 0%, var(--paper) 60%, #0d0f14 100%);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', Consolas, ui-monospace, monospace; }
+
+  .stage { position: absolute; inset: 0; }
+
+  /* Centered typed headline */
+  #headline {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  #headline .bullet {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .caret {
+    display: inline-block;
+    width: 3px;
+    height: 0.95em;
+    margin-left: 4px;
+    background: var(--accent);
+    animation: blink 0.9s steps(1) infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Messy problem words */
+  #chaos { position: absolute; inset: 0; }
+
+  #chaos .w {
+    position: absolute;
+    white-space: nowrap;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    opacity: 0;
+    animation: pop 0.35s ease-out forwards, drift var(--drift-time) linear forwards;
+  }
+
+  #chaos .w.accent { color: var(--accent); }
+
+  /* Inconsistent, half-written test cases */
+  #chaos .w.tc {
+    text-transform: none;
+    font: 400 15px 'IBM Plex Mono', monospace;
+    color: #c3cad6;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  @keyframes pop {
+    from { opacity: 0; transform: translate(0, 0) scale(0.85) rotate(var(--rot)); }
+    to { opacity: 1; transform: translate(0, 0) scale(1) rotate(var(--rot)); }
+  }
+
+  @keyframes drift {
+    to { translate: var(--dx) var(--dy); }
+  }
+
+  #chaos.collapse .w {
+    transition: left 0.8s cubic-bezier(0.6, 0, 0.4, 1), top 0.8s cubic-bezier(0.6, 0, 0.4, 1), opacity 0.8s, scale 0.8s;
+    left: 50% !important;
+    top: 50% !important;
+    opacity: 0 !important;
+    scale: 0.2;
+  }
+
+  #caption {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font: 13px 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 0.4s;
+    white-space: nowrap;
+  }
+
+  #caption.visible { opacity: 1; }
+
+  .shake { animation: shake 0.45s ease-in-out; }
+
+  @keyframes shake {
+    20% { transform: translate(-6px, 3px); }
+    40% { transform: translate(6px, -3px); }
+    60% { transform: translate(-4px, -2px); }
+    80% { transform: translate(3px, 2px); }
+  }
+
+  /* Opening: bug ticket that "passed every test" */
+  #bugcard {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 580px;
+    transform: translate(-50%, -50%) translateY(48px);
+    opacity: 0;
+    transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s;
+  }
+
+  #bugcard.in { transform: translate(-50%, -50%); opacity: 1; }
+
+  #bugcard.out {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0;
+    transition: transform 0.45s ease-in, opacity 0.45s ease-in;
+  }
+
+  #bugcard .bug-inner {
+    position: relative;
+    padding: 22px 26px 24px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  }
+
+  #bugcard .bug-inner.thud { animation: thud 0.35s ease-out; }
+
+  @keyframes thud {
+    30% { transform: translate(-5px, 4px) rotate(-0.4deg); }
+    60% { transform: translate(4px, -2px) rotate(0.3deg); }
+  }
+
+  #bugcard .bug-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font: 13px 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  #bugcard .sev { color: var(--danger); font-weight: 600; }
+  #bugcard .sev::before { content: '●'; margin-right: 6px; }
+
+  #bugcard .bug-title {
+    margin: 14px 0 16px;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  #bugcard .bug-row {
+    display: flex;
+    gap: 16px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+    font-size: 15px;
+  }
+
+  #bugcard .bug-row span { width: 96px; color: var(--muted); }
+  #bugcard .bug-row b { font-weight: 500; }
+  #bugcard .bug-row b.ok { color: var(--ok); font-family: 'IBM Plex Mono', monospace; }
+
+  #bugcard .stamp {
+    position: absolute;
+    right: 26px;
+    top: 58px;
+    padding: 4px 14px;
+    border: 3px solid var(--danger-solid);
+    border-radius: 6px;
+    color: #ff5a5f;
+    font: 700 24px 'IBM Plex Mono', monospace;
+    letter-spacing: 0.14em;
+    opacity: 0;
+    transform: rotate(-12deg) scale(2.6);
+  }
+
+  #bugcard .stamp.hit {
+    opacity: 0.95;
+    transform: rotate(-12deg) scale(1);
+    transition: transform 0.22s cubic-bezier(0.3, 1.6, 0.5, 1), opacity 0.12s;
+  }
+
+  /* Final brand card */
+  #brand {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+
+  #brand.visible { opacity: 1; }
+
+  #brand h1 {
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    transform: translateY(14px);
+    transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  #brand.visible h1 { transform: none; }
+
+  #brand .by {
+    margin-top: 16px;
+    font: 16px 'IBM Plex Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  #brand .tags {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  #brand .tags span {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  #brand .tags span.visible { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div id="bugcard">
+      <div class="bug-inner">
+        <div class="bug-head"><span>BUG-1042</span><span class="sev">Critical</span></div>
+        <div class="bug-title">Transfer of −₱5,000 was accepted</div>
+        <div class="bug-row"><span>Found in</span><b>Production</b></div>
+        <div class="bug-row"><span>Test run</span><b class="ok">42 passed · 0 failed ✓</b></div>
+        <div class="stamp">CRITICAL</div>
+      </div>
+    </div>
+    <div id="headline"></div>
+    <div id="chaos"></div>
+    <div id="caption"></div>
+    <div id="brand">
+      <h1>AI Test-Case Generator</h1>
+      <div class="by">powered by IBM Bob 2.0</div>
+      <div class="tags">
+        <span>Prioritized by risk</span>
+        <span>Verified coverage</span>
+        <span>Story review</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Each section takes the duration of its voice line (ms) from ad.js and fills it; returns when done.
+  const $ = id => document.getElementById(id);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---------- Pieces ----------
+
+  // Type text into the headline letter by letter, with a blinking caret.
+  async function typeHeadline(text, { bullet = false, msPerChar = 45 } = {}) {
+    const el = $('headline');
+    el.innerHTML = '';
+    if (bullet) el.insertAdjacentHTML('beforeend', '<span class="bullet"></span>');
+    const span = document.createElement('span');
+    const caret = document.createElement('span');
+    caret.className = 'caret';
+    el.append(span, caret);
+    for (const ch of text) {
+      span.textContent += ch;
+      await wait(ch === ' ' ? msPerChar * 0.6 : msPerChar);
+    }
+    return el;
+  }
+
+  function clearHeadline() {
+    $('headline').innerHTML = '';
+  }
+
+  const PROBLEM_WORDS = [
+    'Missed edge cases', 'Negative amounts', '−₱5,000', '₱50,000.00?', 'Deadline', 'Written by hand',
+    'Not covered', 'Bug in production', 'Unclear requirements', 'Who unlocks it?', 'Copy. Paste.',
+    'Skipped', 'Just ship it', 'Retest everything', 'Duplicate', 'Out of date', 'Which one runs first?',
+    'Forgot the limit', 'TODO', 'Edge case?', 'Hotfix', 'Rework'
+  ];
+
+  // Test cases written by different people: every format different, some unfinished.
+  const MESSY_TEST_CASES = [
+    'TC-001 login ok ✓', 'test_case_2: wrong pw??', 'Case #3 lockout (TODO)', 'tc4 = DUPLICATE of tc2',
+    'expected: it works', 'steps: see above', 'TC_05 transfer 50k ???', 'Test 6 - ask Mark',
+    'tc-7: negative amount (skip?)', 'TEST_08  /* fix later */'
+  ];
+
+  function spawnWord(text, { testCase = false } = {}) {
+    const el = document.createElement('div');
+    el.className = `w${testCase ? ' tc' : ''}${!testCase && Math.random() < 0.35 ? ' accent' : ''}`;
+    el.textContent = text;
+    if (!testCase) {
+      const sizes = [14, 20, 26, 32, 40, 48];
+      el.style.fontSize = `${sizes[Math.floor(Math.random() * sizes.length)]}px`;
+      if (Math.random() < 0.25) el.classList.add('mono');
+    }
+    el.style.left = `${4 + Math.random() * 78}%`;
+    el.style.top = `${8 + Math.random() * 84}%`;
+    el.style.setProperty('--rot', `${(Math.random() - 0.5) * (testCase ? 8 : 6)}deg`);
+    el.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
+    el.style.setProperty('--dy', `${(Math.random() - 0.5) * 40}px`);
+    el.style.setProperty('--drift-time', `${8 + Math.random() * 6}s`);
+    $('chaos').appendChild(el);
+  }
+
+  // ---------- Sections ----------
+
+  const sections = {
+    // Bug ticket slides in, "passed every test", gets stamped CRITICAL, then gives way to the question.
+    async prompt(ms) {
+      const card = $('bugcard');
+      await wait(200);
+      card.classList.add('in');
+      await wait(900);
+      card.querySelector('.stamp').classList.add('hit');
+      card.querySelector('.bug-inner').classList.add('thud');
+
+      // Keep the card up for roughly the first sentence ("This bug passed every test.")
+      const cardPhase = Math.max(2000, ms * 0.45);
+      await wait(cardPhase - 1100);
+      card.classList.add('out');
+      await wait(450);
+
+      const typeStart = performance.now();
+      await typeHeadline('What did your tests miss?', { bullet: true, msPerChar: 35 });
+      const typed = performance.now() - typeStart;
+      await wait(Math.max(600, ms - cardPhase - 450 - typed));
+    },
+
+    async premise1(ms) {
+      clearHeadline();
+      await wait(500);
+      await typeHeadline('Every feature starts as a user story.', { msPerChar: 38 });
+      await wait(Math.max(600, ms - 2000));
+    },
+
+    async premise2(ms) {
+      clearHeadline();
+      await wait(150);
+      await typeHeadline('And every story becomes test cases.', { msPerChar: 36 });
+      await wait(Math.max(400, ms * 0.45 - 1400));
+      clearHeadline();
+      await typeHeadline('Written by hand.', { msPerChar: 50 });
+      await wait(Math.max(600, ms * 0.55 - 900));
+    },
+
+    // Words and half-written test cases pile up faster and faster until the screen is a mess.
+    async problem(ms) {
+      clearHeadline();
+      $('caption').textContent = 'every tester writes them differently →';
+      $('caption').classList.add('visible');
+
+      const items = [
+        ...PROBLEM_WORDS.map(text => ({ text })),
+        ...MESSY_TEST_CASES.map(text => ({ text, testCase: true })),
+        ...PROBLEM_WORDS.slice(0, 14).map(text => ({ text }))
+      ].sort(() => Math.random() - 0.5);
+
+      const spawnWindow = ms * 0.85;
+      let elapsed = 0;
+      for (let i = 0; i < items.length; i++) {
+        // Gaps shrink over time so the pile-up accelerates.
+        const progress = i / items.length;
+        const gap = (spawnWindow / items.length) * (1.7 - 1.4 * progress);
+        spawnWord(items[i].text, { testCase: items[i].testCase });
+        await wait(gap);
+        elapsed += gap;
+      }
+      $('stage').classList.add('shake');
+      await wait(Math.max(450, ms - elapsed));
+      $('stage').classList.remove('shake');
+    },
+
+    async better(ms) {
+      $('caption').classList.remove('visible');
+      $('chaos').classList.add('collapse');
+      await wait(900);
+      $('chaos').innerHTML = '';
+      $('chaos').classList.remove('collapse');
+      await typeHeadline("There's a better way.", { bullet: true, msPerChar: 50 });
+      await wait(Math.max(500, ms - 2000));
+    },
+
+    async brand(ms) {
+      clearHeadline();
+      $('brand').classList.add('visible');
+      const tags = [...document.querySelectorAll('#brand .tags span')];
+      for (const tag of tags) {
+        await wait(450);
+        tag.classList.add('visible');
+      }
+      await wait(Math.max(1000, ms - 450 * tags.length));
+    }
+  };
+
+  window.ad = {
+    ready: document.fonts ? document.fonts.ready.then(() => true) : Promise.resolve(true),
+    play: (name, ms) => sections[name](ms)
+  };
+
+  // Open ad.html?preview in a browser to watch the animation without rendering (rough, silent timings).
+  if (new URLSearchParams(location.search).has('preview')) {
+    const previewTimings = [['prompt', 4200], ['premise1', 2800], ['premise2', 3800], ['problem', 12000], ['better', 2200], ['brand', 4000]];
+    window.ad.ready.then(async () => {
+      for (const [name, ms] of previewTimings) await window.ad.play(name, ms);
+    });
+  }
+</script>
+</body>
+</html>
