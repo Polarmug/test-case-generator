@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const {
-  normalize, parseJson, parseCriteria, parseGenerateRequest, formatPrompt, extractBobText, tryProviders
+  normalize, parseJson, parseCriteria, parseGenerateRequest, formatPrompt, extractBobText, extractBobStats, tryProviders
 } = require('./llm');
 
 const input = {
@@ -173,6 +173,16 @@ test('extractBobText reads last_message as a message object', () => {
   assert.strictEqual(extractBobText(out), 'hi');
 });
 
+test('extractBobStats reads duration and cost from Bob Shell output', () => {
+  const out = JSON.stringify({ status: 'success', stats: { task_id: 'x', duration_ms: 2341, session_costs: 0.010014 }, last_message: 'hi' });
+  assert.deepStrictEqual(extractBobStats(out), { durationMs: 2341, cost: 0.010014 });
+});
+
+test('extractBobStats skips missing or invalid stats', () => {
+  assert.deepStrictEqual(extractBobStats(JSON.stringify({ status: 'success', last_message: 'hi' })), {});
+  assert.deepStrictEqual(extractBobStats(JSON.stringify({ stats: { duration_ms: 'soon', session_costs: -1 } })), {});
+});
+
 test('extractBobText rejects failed runs', () => {
   assert.throws(() => extractBobText(JSON.stringify({ status: 'error', last_message: 'x' })));
 });
@@ -180,6 +190,14 @@ test('extractBobText rejects failed runs', () => {
 // ---------- provider chain ----------
 
 const good = { testCases: [{ type: 'Negative', steps: ['a'], criteria: [1] }] };
+
+test('tryProviders passes provider stats through', async () => {
+  const result = await tryProviders([
+    { name: 'bob', model: 'Bob Shell 2.0.5', call: async () => ({ content: JSON.stringify(good), stats: { durationMs: 24300, cost: 0.04 } }) }
+  ], input);
+  assert.deepStrictEqual(result.stats, { durationMs: 24300, cost: 0.04 });
+  assert.strictEqual(result.model, 'Bob Shell 2.0.5');
+});
 
 test('tryProviders sends the formatted prompt to providers', async () => {
   let received;

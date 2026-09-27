@@ -53,6 +53,7 @@ interface GenerateResponse {
   gaps?: Gap[];
   provider: string;
   model: string;
+  stats?: { durationMs?: number; cost?: number }; // reported by Bob Shell for its run
   fallback: boolean;
   notice?: string;
   storyId?: string;
@@ -185,6 +186,15 @@ const parseCriteria = (text: string) =>
 const slug = (text: string) => text.toLowerCase().replace(/\s+/g, '-');
 
 const criteriaLabel = (refs: number[]) => refs.map(n => `AC${n}`).join(', ');
+
+// "24.3 s · 0.041 bobcoins" from the stats Bob Shell reports; empty for other providers.
+function formatBobStats(stats: GenerateResponse['stats']): string {
+  if (!stats) return '';
+  const parts: string[] = [];
+  if (stats.durationMs !== undefined) parts.push(`${(stats.durationMs / 1000).toFixed(1)} s`);
+  if (stats.cost !== undefined) parts.push(`${stats.cost < 0.001 ? '<0.001' : stats.cost.toFixed(3)} bobcoins`);
+  return parts.join(' · ');
+}
 
 type Theme = 'light' | 'dark';
 
@@ -381,6 +391,11 @@ function App() {
             <span className="provider">
               Powered by {PROVIDER_LABELS[result.provider] ?? result.provider}
               {result.model && <span className="muted"> · {result.model}</span>}
+              {formatBobStats(result.stats) && (
+                <span className="muted" title="Run time and cost reported by Bob Shell">
+                  {' · '}{formatBobStats(result.stats)}
+                </span>
+              )}
             </span>
           )}
           <button

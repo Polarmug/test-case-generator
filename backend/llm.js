@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -126,6 +126,31 @@ function bobConfigured() {
   return bobKeys().length > 0;
 }
 
+// Quote the configured bob command if its path has spaces.
+function bobCommand() {
+  const command = env('BOB_COMMAND') || 'bob';
+  return command.includes(' ') ? `"${command}"` : command;
+}
+
+// Installed Bob Shell version (e.g. "2.0.5"), read once at startup and shown in the UI.
+let bobVersion = null;
+
+function detectBobVersion() {
+  if (!bobConfigured()) return;
+  exec(`${bobCommand()} --version`, { env: { ...process.env, NODE_NO_WARNINGS: '1' }, windowsHide: true, timeout: 30_000 },
+    (err, stdout) => {
+      if (err) return console.error(`[bob] could not read version: ${err.message}`);
+      bobVersion = String(stdout).match(/\d+\.\d+\.\d+[\w.-]*/)?.[0] ?? null;
+      if (bobVersion) console.log(`[bob] Bob Shell version ${bobVersion}`);
+    });
+}
+
+detectBobVersion();
+
+function bobModel() {
+  return bobVersion ? `Bob Shell ${bobVersion}` : 'Bob Shell';
+}
+
 function watsonxConfigured() {
   return Boolean(env('WATSONX_API_KEY') && env('WATSONX_PROJECT_ID'));
 }
@@ -150,6 +175,17 @@ function extractBobText(stdout) {
     }
   }
   throw new Error('Bob Shell output had no last_message');
+}
+
+// Usage stats Bob Shell reports for a run: how long it took and what it cost (in bobcoins).
+function extractBobStats(stdout) {
+  const stats = parseJson(stdout).stats ?? {};
+  const durationMs = Number(stats.duration_ms);
+  const cost = Number(stats.session_costs);
+  return {
+    ...(Number.isFinite(durationMs) && durationMs >= 0 ? { durationMs } : {}),
+    ...(Number.isFinite(cost) && cost >= 0 ? { cost } : {})
+  };
 }
 
 // Try each Bob key in turn. A timeout means Bob itself is slow, so the spare key isn't tried then.
@@ -205,7 +241,7 @@ function runBob(userStory, apiKey) {
         return reject(new Error(`Bob Shell exited with code ${code}: ${(stderr || stdout).trim().slice(0, 500)}`));
       }
       try {
-        resolve(extractBobText(stdout));
+        resolve({ content: extractBobText(stdout), stats: extractBobStats(stdout) });
       } catch (err) {
         reject(err);
       }
@@ -428,7 +464,7 @@ function normalize(raw, { storyId, criteria }) {
 }
 
 const PROVIDERS = {
-  bob: { configured: bobConfigured, model: () => 'Bob Shell', call: callBob },
+  bob: { configured: bobConfigured, model: bobModel, call: callBob },
   watsonx: { configured: watsonxConfigured, model: watsonxModel, call: callWatsonx },
   groq: { configured: () => Boolean(env('GROQ_API_KEY')), model: groqModel, call: callGroq },
   gemini: { configured: () => Boolean(env('GEMINI_API_KEY')), model: () => geminiModels()[0], call: callGemini }
@@ -455,7 +491,12 @@ async function tryProviders(providers, input) {
       const content = typeof answer === 'string' ? answer : answer.content;
       const result = normalize(parseJson(content), input);
       if (result.testCases.length === 0) throw new Error('returned no test cases');
-      return { ...result, provider: provider.name, model: answer.model ?? provider.model };
+      return {
+        ...result,
+        provider: provider.name,
+        model: answer.model ?? provider.model,
+        ...(answer.stats ? { stats: answer.stats } : {})
+      };
     } catch (err) {
       console.error(`[${provider.name}] failed: ${err.message}`);
       lastError = err;
@@ -470,5 +511,5 @@ function generateTestCases(input) {
 
 module.exports = {
   generateTestCases, configuredProviders, tryProviders, normalize, parseJson, parseCriteria, parseGenerateRequest,
-  formatPrompt, extractBobText, DEFAULT_STORY_ID
+  formatPrompt, extractBobText, extractBobStats, DEFAULT_STORY_ID
 };
