@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toGherkin } from './gherkin';
 import './App.css';
@@ -196,6 +196,18 @@ function formatBobStats(stats: GenerateResponse['stats']): string {
   return parts.join(' · ');
 }
 
+// Loading steps shown while the AI works. The backend doesn't stream progress, so these advance on a
+// timer matched to a typical Bob run (~20-40 s); the last step stays active until the answer arrives.
+const LOADING_STEPS = [
+  { label: 'Reading your story and criteria', startsAt: 0 },
+  { label: 'Writing test cases', startsAt: 4 },
+  { label: 'Ranking them by risk', startsAt: 12 },
+  { label: 'Reviewing the story for gaps', startsAt: 18 },
+  { label: 'Checking acceptance-criteria coverage', startsAt: 25 }
+];
+
+const LONG_WAIT_SECONDS = 45;
+
 type Theme = 'light' | 'dark';
 
 // index.html sets data-theme before the first paint (saved choice, else the system setting).
@@ -208,6 +220,18 @@ function App() {
   const [criteriaText, setCriteriaText] = useState('');
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [waitSeconds, setWaitSeconds] = useState(0); // time since Generate was clicked, while loading
+
+  // Tick the loading timer every half second while a request is running.
+  useEffect(() => {
+    if (!loading) return;
+    const startedAt = Date.now();
+    const timer = setInterval(() => setWaitSeconds((Date.now() - startedAt) / 1000), 500);
+    return () => clearInterval(timer);
+  }, [loading]);
+
+  // Index of the step currently shown as in progress.
+  const activeStep = LOADING_STEPS.reduce((current, step, i) => (waitSeconds >= step.startsAt ? i : current), 0);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<TestType | null>(null);
   const [highOnly, setHighOnly] = useState(false);
@@ -272,6 +296,7 @@ function App() {
 
   const generate = async () => {
     if (!canGenerate) return;
+    setWaitSeconds(0);
     setLoading(true);
     setError('');
     setFilter(null);
@@ -481,6 +506,32 @@ function App() {
           )}
         </div>
       </section>
+
+      {loading && (
+        <section className="card progress-card" aria-live="polite">
+          <div className="progress-head">
+            <span className="spinner spinner-accent" />
+            <strong>IBM Bob is working on your story…</strong>
+            <span className="progress-time">{Math.floor(waitSeconds)} s</span>
+          </div>
+          <ol className="progress-steps">
+            {LOADING_STEPS.map((step, i) => {
+              const state = i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending';
+              return (
+                <li key={step.label} className={`progress-step ${state}`}>
+                  <span className="progress-icon" aria-hidden="true">{state === 'done' ? '✓' : ''}</span>
+                  {step.label}
+                </li>
+              );
+            })}
+          </ol>
+          <p className="hint">
+            {waitSeconds < LONG_WAIT_SECONDS
+              ? 'Usually takes 20–40 seconds.'
+              : 'Taking longer than usual. If Bob is busy, a backup AI will answer automatically.'}
+          </p>
+        </section>
+      )}
 
       {error && <div className="banner banner-error">{error}</div>}
       {result?.notice && <div className="banner banner-warn">{result.notice}</div>}

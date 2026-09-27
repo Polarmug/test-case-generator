@@ -1098,3 +1098,93 @@ select {
     font-size: 14px;
   }
 }
+
+/* ---------- Loading progress ---------- */
+
+.progress-card {
+  border-left: 4px solid var(--accent);
+}
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-time {
+  margin-left: auto;
+  font: 600 14px 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  color: var(--muted);
+}
+
+/* The button spinner is white; this one sits on the card background. */
+.spinner-accent {
+  border-color: var(--accent-soft);
+  border-top-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.progress-steps {
+  list-style: none;
+  margin: 12px 0 8px;
+  padding: 0;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.progress-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.progress-step.done {
+  color: var(--muted);
+}
+
+.progress-step.done .progress-icon {
+  background: var(--happy-soft);
+  color: var(--happy);
+}
+
+.progress-step.active {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.progress-step.active .progress-icon {
+  border: 2px solid var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.progress-step.pending {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.progress-step.pending .progress-icon {
+  border: 2px solid var(--border);
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 5px var(--accent-soft); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-step.active .progress-icon {
+    animation: none;
+  }
+}
