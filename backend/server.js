@@ -54,7 +54,8 @@ app.post('/api/generate', async (req, res) => {
 
   activeBobRuns++;
   try {
-    res.json({ ...(await generateTestCases(input)), fallback: false });
+    const result = await generateTestCases(input);
+    res.json({ ...result, storyId: input.storyId, story: input.story, fallback: false });
   } catch (err) {
     // Keep the demo alive: serve a saved example instead of an error.
     console.error('Generation failed, serving fallback:', err.message);

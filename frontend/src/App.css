@@ -178,8 +178,13 @@ textarea:focus {
   opacity: 0.55;
 }
 
-.secondary {
+.export-buttons {
+  display: flex;
+  gap: 8px;
   margin-left: auto;
+}
+
+.secondary {
   background: var(--surface);
   color: var(--accent);
   border: 1px solid var(--accent);
@@ -456,7 +461,7 @@ tbody tr.highlight {
     font-size: 22px;
   }
 
-  .secondary {
+  .export-buttons {
     margin-left: 0;
   }
 
@@ -688,7 +693,11 @@ textarea::placeholder {
     display: none; /* no Ctrl + Enter on phones */
   }
 
-  .actions .secondary {
+  .export-buttons {
+    width: 100%;
+  }
+
+  .export-buttons .secondary {
     flex: 1;
     justify-content: center;
   }

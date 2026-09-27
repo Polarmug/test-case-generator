@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { toGherkin } from './gherkin';
 import './App.css';
 
 type TestType = 'Happy Path' | 'Negative' | 'Edge Case' | 'Other';
@@ -40,6 +41,16 @@ interface GenerateResponse {
   model: string;
   fallback: boolean;
   notice?: string;
+  storyId?: string;
+  story?: string;
+}
+
+function downloadFile(content: string, filename: string, type: string) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([content], { type }));
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 // In dev the backend runs separately on :3001; in production it serves this page, so use the same origin.
@@ -176,6 +187,7 @@ function App() {
 
   const testCases = result?.testCases ?? [];
   const coverage = result?.coverage ?? [];
+  const resultStoryId = result?.storyId || testCases[0]?.storyId || '001';
   // Keep each row's position in the full list so edits/deletes work while a filter is on.
   const visible = testCases
     .map((tc, index) => ({ tc, index }))
@@ -271,13 +283,17 @@ function App() {
     const escape = (c: unknown) => `"${String(c ?? '').replace(/"/g, '""')}"`;
     const csv = [headers, ...rows].map(r => r.map(escape).join(',')).join('\r\n');
     // BOM so Excel opens the file as UTF-8
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const storyId = testCases[0]?.storyId;
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = storyId ? `test-cases-${storyId}.csv` : 'test-cases.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadFile('﻿' + csv, `test-cases-${resultStoryId}.csv`, 'text/csv;charset=utf-8');
+  };
+
+  const exportGherkin = () => {
+    const feature = toGherkin({
+      storyId: resultStoryId,
+      story: result?.story ?? '',
+      criteria: coverage.map(c => c.criterion),
+      testCases
+    });
+    downloadFile(feature, `test-cases-${resultStoryId}.feature`, 'text/plain;charset=utf-8');
   };
 
   return (
@@ -359,7 +375,12 @@ function App() {
           </button>
           <span className="hint">Ctrl + Enter</span>
           {testCases.length > 0 && (
-            <button className="secondary" onClick={exportCSV}>Export CSV</button>
+            <div className="export-buttons">
+              <button className="secondary" onClick={exportCSV}>Export CSV</button>
+              <button className="secondary" onClick={exportGherkin} title="Download a Gherkin .feature file (Given / When / Then)">
+                Export Gherkin
+              </button>
+            </div>
           )}
         </div>
       </section>

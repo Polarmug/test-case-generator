@@ -1,6 +1,6 @@
 # AI Test-Case Generator
 
-Enter a user story and its acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case) → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV.
+Enter a user story and its acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case) → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV or Gherkin (`.feature`, Given / When / Then, tagged by test case ID, type and acceptance criterion).
 
 ## Input
 
@@ -51,7 +51,8 @@ test-case-generator/
 │   ├── llm.test.js        Tests (npm test)
 │   └── .env               API keys (never commit; template in .env.example)
 └── frontend/              Vite + React + TypeScript, port 5173
-    └── src/App.tsx        UI: input, summary/filter, coverage, editable table, CSV export
+    ├── src/App.tsx        UI: input, summary/filter, coverage, editable table, CSV export
+    └── src/gherkin.ts     Gherkin .feature export
 ```
 
 ## Setup
