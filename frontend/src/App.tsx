@@ -436,7 +436,7 @@ function App() {
                   {visible.map(({ tc, index }) =>
                     draft?.index === index ? (
                       <tr key={`${tc.testCaseId}-${index}`} className="editing">
-                        <td className="mono">{tc.testCaseId}</td>
+                        <td className="mono id-cell">{tc.testCaseId}</td>
                         <td>
                           <label className="field-label" htmlFor="edit-scenario">Scenario</label>
                           <input
@@ -453,7 +453,7 @@ function App() {
                             onChange={e => setDraft({ ...draft, preconditions: e.target.value })}
                           />
                         </td>
-                        <td>
+                        <td className="type-cell">
                           <select
                             aria-label="Type"
                             value={draft.type}
@@ -462,7 +462,7 @@ function App() {
                             {[...TYPES, 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
                           </select>
                         </td>
-                        <td>
+                        <td data-label="Steps">
                           <textarea
                             aria-label="Steps, one per line"
                             rows={5}
@@ -471,7 +471,7 @@ function App() {
                           />
                           <div className="hint">One step per line</div>
                         </td>
-                        <td>
+                        <td data-label="Test data">
                           <textarea
                             aria-label="Test data"
                             rows={3}
@@ -479,7 +479,7 @@ function App() {
                             onChange={e => setDraft({ ...draft, testData: e.target.value })}
                           />
                         </td>
-                        <td>
+                        <td data-label="Expected result">
                           <textarea
                             aria-label="Expected result"
                             rows={3}
@@ -498,25 +498,25 @@ function App() {
                         id={`row-${tc.testCaseId}`}
                         className={highlighted === tc.testCaseId ? 'highlight' : ''}
                       >
-                        <td className="mono">
+                        <td className="mono id-cell">
                           {tc.testCaseId}
                           {tc.criteria?.length > 0 && <div className="covers">Covers {criteriaLabel(tc.criteria)}</div>}
                           {tc.edited && <div className="edited-tag">edited</div>}
                         </td>
-                        <td>
+                        <td data-label="Scenario">
                           <div className="scenario">{tc.scenario}</div>
                           {tc.preconditions && (
                             <div className="sub"><span>Preconditions:</span> {tc.preconditions}</div>
                           )}
                         </td>
-                        <td><span className={`badge badge-${slug(tc.type)}`}>{tc.type}</span></td>
-                        <td>
+                        <td className="type-cell"><span className={`badge badge-${slug(tc.type)}`}>{tc.type}</span></td>
+                        <td data-label="Steps">
                           <ol className="steps">
                             {tc.steps.map((s, i) => <li key={i}>{s}</li>)}
                           </ol>
                         </td>
-                        <td className="test-data">{tc.testData || '—'}</td>
-                        <td>{tc.expectedResult}</td>
+                        <td data-label="Test data" className="test-data">{tc.testData || '—'}</td>
+                        <td data-label="Expected result">{tc.expectedResult}</td>
                         <td className="row-actions">
                           <button className="ghost small" onClick={() => startEdit(index)} disabled={draft !== null}>
                             Edit

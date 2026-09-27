@@ -650,3 +650,165 @@ textarea::placeholder {
   color: var(--muted);
   white-space: nowrap;
 }
+
+/* ---------- Phones and small tablets ---------- */
+
+@media (max-width: 700px) {
+  .page {
+    padding: 20px 12px 48px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  /* 16px text stops iOS Safari from zooming in when a field is focused. */
+  .field input,
+  textarea,
+  tr.editing input,
+  tr.editing textarea,
+  tr.editing select {
+    font-size: 16px;
+  }
+
+  .field-short input {
+    max-width: none;
+  }
+
+  .actions .primary {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .actions .hint {
+    display: none; /* no Ctrl + Enter on phones */
+  }
+
+  .actions .secondary {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .elapsed {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* Test case table becomes one card per row. */
+  .table-card {
+    background: transparent;
+    border: none;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  td {
+    padding: 6px 0;
+    border-bottom: none;
+  }
+
+  td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  /* ID and type badge share the top line of the card; everything else stacks below. */
+  td.id-cell {
+    order: 0;
+    flex: 1;
+    width: auto;
+    padding-top: 0;
+  }
+
+  td.type-cell {
+    order: 1;
+    width: auto;
+    padding-top: 0;
+  }
+
+  td:not(.id-cell):not(.type-cell) {
+    order: 2;
+  }
+
+  tr.editing td.type-cell {
+    order: 2;
+    width: 100%;
+  }
+
+  .stat {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .stat strong {
+    font-size: 15px;
+  }
+
+  .covers {
+    white-space: normal;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .row-actions button {
+    flex: 1;
+    padding: 9px 12px;
+    font-size: 14px;
+  }
+
+  .row-actions button + button {
+    margin-left: 0;
+  }
+
+  tr.editing input,
+  tr.editing textarea,
+  tr.editing select {
+    min-width: 0;
+  }
+}
+
+/* Story fields read better in the body font than in monospace. */
+.field textarea {
+  font-family: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
