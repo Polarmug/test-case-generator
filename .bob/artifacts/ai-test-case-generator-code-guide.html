@@ -1,0 +1,304 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Test-Case Generator — Code Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 20px 48px;
+  }
+
+  .wrapper {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8e8e8;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: #9d9d9d;
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead tr {
+    background: #252526;
+    border-bottom: 2px solid #3c3c3c;
+  }
+
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8c8c8;
+    letter-spacing: 0.02em;
+  }
+
+  thead th:first-child { width: 210px; }
+
+  tbody tr {
+    border-bottom: 1px solid #2d2d2d;
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #252526;
+  }
+
+  tbody tr:nth-child(odd) {
+    background: #1e1e1e;
+  }
+
+  /* highlight rows — matches the teal rows in the screenshot */
+  tbody tr.hl {
+    background: #1f3a47;
+  }
+
+  tbody td {
+    padding: 13px 16px;
+  }
+
+  td.loc {
+    font-size: 13px;
+    color: #c8c8c8;
+    font-weight: 500;
+  }
+
+  code {
+    font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+    font-size: 12px;
+    background: #2d2d2d;
+    color: #9cdcfe;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .loc code {
+    display: inline-block;
+    margin-bottom: 3px;
+  }
+
+  td.loc .label {
+    display: block;
+    margin-top: 4px;
+    color: #b0b0b0;
+  }
+
+  td.explain {
+    color: #d4d4d4;
+    font-size: 14px;
+  }
+
+  td.explain strong {
+    color: #e8e8e8;
+    font-weight: 600;
+  }
+
+  td.explain .file {
+    font-size: 11px;
+    color: #6a9fb5;
+    font-family: "Cascadia Code", Consolas, monospace;
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .section-row td {
+    background: #007acc22;
+    border-top: 2px solid #007acc55;
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6a9fb5;
+    border-bottom: none;
+  }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid #2d2d2d;
+    text-align: center;
+    font-size: 12px;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>AI Test-Case Generator — Code Guide</h1>
+  <p class="subtitle">Key locations in the codebase and what the logic there actually does.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Location</th>
+        <th>What it explains</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      
+      <tr class="section-row"><td colspan="2">backend / server.js</td></tr>
+
+      <tr>
+        <td class="loc"><code>rateLimited()</code></td>
+        <td class="explain">
+          <span class="file">server.js · line 20</span>
+          Sliding-window rate limiter keyed by client IP. Allows up to <strong>10 requests per 15 minutes</strong> per visitor. IPs are tracked in a plain <code>Map</code>; old timestamp entries are pruned on every check, but the IP key itself is never evicted — a known slow memory leak on high-traffic deployments.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>activeBobRuns</code><span class="label">concurrency guard</span></td>
+        <td class="explain">
+          <span class="file">server.js · line 51</span>
+          Caps simultaneous in-flight requests at <strong><code>MAX_CONCURRENT_BOB_RUNS</code></strong> (default 2). Note: the counter applies to <em>all</em> providers, not just Bob Shell — so a request routed to Groq or Gemini is still rejected with "Bob is busy" when the counter is full.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>fallback</code><span class="label">catch block</span></td>
+        <td class="explain">
+          <span class="file">server.js · line 59</span>
+          If every AI provider fails, the server returns <code>fallback.json</code> — a pre-saved example result — with <code>fallback: true</code> and a visible notice. The demo therefore <strong>never shows a raw 500 error</strong>; users always see a meaningful result.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>trust proxy</code><span class="label">Express setting</span></td>
+        <td class="explain">
+          <span class="file">server.js · line 33</span>
+          Railway (the deployment platform) sits behind a reverse proxy. Without <code>app.set('trust proxy', 1)</code>, <code>req.ip</code> would always be the proxy's internal IP, making the rate limiter useless — every visitor would share the same bucket.
+        </td>
+      </tr>
+
+      
+      <tr class="section-row"><td colspan="2">backend / llm.js</td></tr>
+
+      <tr>
+        <td class="loc"><code>SYSTEM_PROMPT</code></td>
+        <td class="explain">
+          <span class="file">llm.js · line 6</span>
+          The instructions every provider receives. It hard-codes the allowed <code>type</code> values, requires <code>steps</code> to be an array, tells the model to tag each test case with the <strong>numbers</strong> of the criteria it covers, and demands bare JSON — no markdown fences. This tight spec is what makes the lenient normaliser below actually necessary.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>env()</code><span class="label">helper</span></td>
+        <td class="explain">
+          <span class="file">llm.js · line 94</span>
+          Treats both an unset variable <em>and</em> the <code>your_…</code> placeholder values from <code>.env.example</code> as "not configured". This means copying <code>.env.example</code> verbatim and forgetting to fill it in will silently skip those providers rather than sending garbage API keys.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>BOB_WORKSPACE</code></td>
+        <td class="explain">
+          <span class="file">llm.js · line 113</span>
+          Bob Shell is given an <strong>empty scratch folder</strong> as its workspace so it cannot read or write any project files. The same folder is reused across concurrent runs — not fully isolated, but safe because Bob runs with <code>--disable-mcp</code> and <code>--disable-subagents</code>.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>callBob()</code><span class="label">key retry loop</span></td>
+        <td class="explain">
+          <span class="file">llm.js · line 135</span>
+          Tries <code>BOB_API_KEY</code> first; if that fails for any reason <em>except a timeout</em>, it retries with <code>BOB_API_KEY_2</code>. A timeout is not retried because it means Bob itself is slow — a spare key wouldn't help and would just double the wait.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>normalize()</code></td>
+        <td class="explain">
+          <span class="file">llm.js · line 356</span>
+          Coerces whatever the model returned into the exact shape the frontend expects: renumbers IDs to <code>TC-&lt;storyId&gt;-NN</code>, maps fuzzy type labels ("positive", "boundary") to the canonical three values, converts string steps to an array, and <strong>recomputes coverage from the user's own criteria list</strong> rather than trusting whatever the model said.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>tryProviders()</code><span class="label">provider chain</span></td>
+        <td class="explain">
+          <span class="file">llm.js · line 397</span>
+          Iterates the configured providers in order (Bob → watsonx → Groq → Gemini). A provider is skipped not just on error but also if it returns <strong>zero test cases</strong> after normalisation — a technically successful but useless response still falls through to the next provider.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>geminiModels()</code><span class="label">overload retry</span></td>
+        <td class="explain">
+          <span class="file">llm.js · line 284</span>
+          <code>GEMINI_MODEL</code> can be a comma-separated list. Only HTTP <strong>429 / 500 / 503</strong> (overload / rate-limit) responses trigger a retry on the next model; all other errors fail fast to avoid wasting time on a definitely-broken key.
+        </td>
+      </tr>
+
+      
+      <tr class="section-row"><td colspan="2">frontend / src / App.tsx</td></tr>
+
+      <tr class="hl">
+        <td class="loc"><code>parseCriteria</code><span class="label">frontend helper</span></td>
+        <td class="explain">
+          <span class="file">App.tsx · line 139</span>
+          Mirrors the backend's <code>parseCriteria</code>: strips bullets (<code>-</code>, <code>*</code>, <code>•</code>) and numbering (<code>1.</code>, <code>2)</code>) from pasted text. Running the same logic client-side means the "N criteria detected" counter stays in sync with what the backend will actually receive.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>visible</code><span class="label">filter map</span></td>
+        <td class="explain">
+          <span class="file">App.tsx · line 180</span>
+          Maps each test case to <code>{ tc, index }</code> <em>before</em> filtering by type. Keeping the original <code>index</code> means edit and delete operations always target the correct row in the full array, even when only a subset of rows is shown.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>deleteRow()</code><span class="label">undo support</span></td>
+        <td class="explain">
+          <span class="file">App.tsx · line 243</span>
+          Saves the removed test case and the <em>pre-deletion coverage snapshot</em> into <code>lastDeleted</code>. Undo restores both the row at its original position and the old coverage list in one <code>setResult</code> call. Only the <strong>most recent deletion</strong> can be undone — deleting a second row clears the undo buffer.
+        </td>
+      </tr>
+
+      <tr>
+        <td class="loc"><code>exportCSV()</code><span class="label">BOM byte</span></td>
+        <td class="explain">
+          <span class="file">App.tsx · line 265</span>
+          The CSV blob is prefixed with a UTF-8 BOM (<code>\uFEFF</code>). Without it, Excel on Windows opens the file in the system's default ANSI encoding, which mangles characters like <strong>₱</strong> or accented letters in test data. The BOM signals UTF-8 to Excel without affecting any other tool.
+        </td>
+      </tr>
+
+      <tr class="hl">
+        <td class="loc"><code>API_URL</code><span class="label">dev vs prod</span></td>
+        <td class="explain">
+          <span class="file">App.tsx · line 57</span>
+          In development the frontend (Vite, port 5173) and backend (Express, port 3001) run on different ports, so requests go to <code>http://localhost:3001</code>. In production the backend serves the built frontend from the same origin, so an empty string (same-origin relative URLs) is used instead. <code>VITE_API_URL</code> overrides both for custom deployments.
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>
