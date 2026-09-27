@@ -8,6 +8,7 @@ interface TestCase {
   testCaseId: string;
   scenario: string;
   type: TestType;
+  criteria: number[]; // 1-based numbers of the acceptance criteria this test case verifies
   preconditions: string;
   steps: string[];
   testData: string;
@@ -54,17 +55,101 @@ const PROVIDER_LABELS: Record<string, string> = {
   fallback: 'Saved example'
 };
 
-const EXAMPLE_STORY = `Story ID: 001
-As a user, I want to log in so that I can access my account.
-Acceptance criteria:
-- valid credentials grant access
-- wrong password is rejected
-- account locks after 5 failed attempts`;
+interface Example {
+  label: string;
+  storyId: string;
+  story: string;
+  criteria: string[];
+}
+
+const EXAMPLES: Example[] = [
+  {
+    label: 'Login',
+    storyId: '001',
+    story: 'As a user, I want to log in so that I can access my account.',
+    criteria: [
+      'valid credentials grant access',
+      'wrong password is rejected',
+      'account locks after 5 failed attempts'
+    ]
+  },
+  {
+    label: 'Password reset',
+    storyId: '002',
+    story: 'As a registered user, I want to reset my password via email so that I can regain access if I forget it.',
+    criteria: [
+      'user can request a reset link by entering their registered email',
+      'reset link expires after 30 minutes',
+      'reset link can only be used once',
+      'new password must be at least 8 characters and include a number',
+      'unregistered emails show the same confirmation message as registered ones'
+    ]
+  },
+  {
+    label: 'Discount code',
+    storyId: '003',
+    story: 'As a shopper, I want to apply a discount code at checkout so that I can pay a lower price.',
+    criteria: [
+      'a valid code reduces the order total by its percentage',
+      'expired codes are rejected with an error message',
+      'only one code can be applied per order',
+      'discount cannot reduce the total below 0',
+      'code is case-insensitive'
+    ]
+  },
+  {
+    label: 'Assignment upload',
+    storyId: '004',
+    story: 'As a student, I want to upload my assignment as a PDF so that my teacher can grade it.',
+    criteria: [
+      'only PDF files are accepted',
+      'maximum file size is 10 MB',
+      'student can replace the file before the deadline',
+      'uploads after the deadline are blocked',
+      'student sees a confirmation with the file name and upload time'
+    ]
+  },
+  {
+    label: 'Bank transfer',
+    storyId: '005',
+    story: 'As a bank customer, I want to transfer money to another account so that I can pay people quickly.',
+    criteria: [
+      'transfer succeeds when the balance is sufficient',
+      'transfer is blocked when the balance is insufficient',
+      'daily transfer limit is 50,000 PHP',
+      'recipient account number must be 12 digits',
+      'user must confirm with a one-time PIN before the transfer is sent'
+    ]
+  }
+];
+
+// Greyed-out hints shown in the empty fields.
+const PLACEHOLDERS = {
+  storyId: 'e.g. 005',
+  story: 'e.g. As a bank customer, I want to transfer money to another account so that I can pay people quickly.',
+  criteria: [
+    'One criterion per line, e.g.',
+    'transfer succeeds when the balance is sufficient',
+    'transfer is blocked when the balance is insufficient',
+    'daily transfer limit is 50,000 PHP'
+  ].join('\n')
+};
+
+// Same rules as the backend: one criterion per line, bullets and numbering dropped.
+const parseCriteria = (text: string) =>
+  text
+    .split(/\r?\n/)
+    .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean);
 
 const slug = (text: string) => text.toLowerCase().replace(/\s+/g, '-');
 
+const criteriaLabel = (refs: number[]) => refs.map(n => `AC${n}`).join(', ');
+
 function App() {
-  const [userStory, setUserStory] = useState('');
+  const [storyId, setStoryId] = useState('');
+  const [story, setStory] = useState('');
+  const [criteriaText, setCriteriaText] = useState('');
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +158,21 @@ function App() {
   const [elapsed, setElapsed] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [lastDeleted, setLastDeleted] = useState<{ testCase: TestCase; index: number; coverage: Coverage[] } | null>(null);
+
+  const criteriaList = parseCriteria(criteriaText);
+  const canGenerate = !loading && story.trim() !== '' && criteriaList.length > 0;
+
+  const loadExample = (label: string) => {
+    const example = EXAMPLES.find(e => e.label === label);
+    if (!example) return;
+    setStoryId(example.storyId);
+    setStory(example.story);
+    setCriteriaText(example.criteria.join('\n'));
+  };
+
+  const onCtrlEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+  };
 
   const testCases = result?.testCases ?? [];
   const coverage = result?.coverage ?? [];
@@ -84,7 +184,7 @@ function App() {
   const countOf = (type: TestType) => testCases.filter(tc => tc.type === type).length;
 
   const generate = async () => {
-    if (!userStory.trim() || loading) return;
+    if (!canGenerate) return;
     setLoading(true);
     setError('');
     setFilter(null);
@@ -93,7 +193,11 @@ function App() {
     setLastDeleted(null);
     const started = performance.now();
     try {
-      const res = await axios.post<GenerateResponse>(`${API_URL}/api/generate`, { userStory });
+      const res = await axios.post<GenerateResponse>(`${API_URL}/api/generate`, {
+        storyId: storyId.trim(),
+        story: story.trim(),
+        criteria: criteriaList
+      });
       setResult(res.data);
       setElapsed((performance.now() - started) / 1000);
     } catch (err) {
@@ -159,9 +263,9 @@ function App() {
   };
 
   const exportCSV = () => {
-    const headers = ['Test Case ID', 'Scenario', 'Type', 'Preconditions', 'Steps', 'Test Data', 'Expected Result', 'Story ID'];
+    const headers = ['Test Case ID', 'Scenario', 'Type', 'Covers', 'Preconditions', 'Steps', 'Test Data', 'Expected Result', 'Story ID'];
     const rows = testCases.map(tc => [
-      tc.testCaseId, tc.scenario, tc.type, tc.preconditions,
+      tc.testCaseId, tc.scenario, tc.type, criteriaLabel(tc.criteria ?? []), tc.preconditions,
       tc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n'), tc.testData, tc.expectedResult, tc.storyId
     ]);
     const escape = (c: unknown) => `"${String(c ?? '').replace(/"/g, '""')}"`;
@@ -193,23 +297,64 @@ function App() {
 
       <section className="card">
         <div className="card-head">
-          <label htmlFor="story">User story &amp; acceptance criteria</label>
-          <button className="link-btn" onClick={() => setUserStory(EXAMPLE_STORY)} disabled={loading}>
-            Load example
-          </button>
+          <h2 className="card-title">Your user story</h2>
+          <select
+            className="example-select"
+            aria-label="Load an example story"
+            value=""
+            onChange={e => loadExample(e.target.value)}
+            disabled={loading}
+          >
+            <option value="" disabled>Load example…</option>
+            {EXAMPLES.map(e => <option key={e.label} value={e.label}>{e.label}</option>)}
+          </select>
         </div>
-        <textarea
-          id="story"
-          value={userStory}
-          onChange={e => setUserStory(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
-          }}
-          placeholder="Paste a user story with its acceptance criteria..."
-          rows={8}
-        />
+
+        <div className="field field-short">
+          <label htmlFor="story-id">Story ID <span className="optional">(optional)</span></label>
+          <input
+            id="story-id"
+            value={storyId}
+            onChange={e => setStoryId(e.target.value)}
+            onKeyDown={onCtrlEnter}
+            placeholder={PLACEHOLDERS.storyId}
+            maxLength={20}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="story">User story</label>
+          <textarea
+            id="story"
+            value={story}
+            onChange={e => setStory(e.target.value)}
+            onKeyDown={onCtrlEnter}
+            placeholder={PLACEHOLDERS.story}
+            rows={3}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="criteria">
+            Acceptance criteria <span className="optional">(one per line)</span>
+          </label>
+          <textarea
+            id="criteria"
+            value={criteriaText}
+            onChange={e => setCriteriaText(e.target.value)}
+            onKeyDown={onCtrlEnter}
+            placeholder={PLACEHOLDERS.criteria}
+            rows={6}
+          />
+          <div className="hint">
+            {criteriaList.length === 0
+              ? 'Add at least one criterion.'
+              : `${criteriaList.length} ${criteriaList.length === 1 ? 'criterion' : 'criteria'} detected`}
+          </div>
+        </div>
+
         <div className="actions">
-          <button className="primary" onClick={generate} disabled={loading || !userStory.trim()}>
+          <button className="primary" onClick={generate} disabled={!canGenerate}>
             {loading ? <><span className="spinner" /> Generating…</> : 'Generate test cases'}
           </button>
           <span className="hint">Ctrl + Enter</span>
@@ -252,7 +397,7 @@ function App() {
                 {coverage.map((c, i) => (
                   <li key={i} className={c.testCaseIds.length ? 'covered' : 'uncovered'}>
                     <span className="check">{c.testCaseIds.length ? '✓' : '!'}</span>
-                    <span className="criterion">{c.criterion}</span>
+                    <span className="criterion"><span className="ac-num">AC{i + 1}</span> {c.criterion}</span>
                     <span className="ids">
                       {c.testCaseIds.length
                         ? c.testCaseIds.map(id => (
@@ -355,6 +500,7 @@ function App() {
                       >
                         <td className="mono">
                           {tc.testCaseId}
+                          {tc.criteria?.length > 0 && <div className="covers">Covers {criteriaLabel(tc.criteria)}</div>}
                           {tc.edited && <div className="edited-tag">edited</div>}
                         </td>
                         <td>

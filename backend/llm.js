@@ -3,16 +3,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const SYSTEM_PROMPT = `You are a QA test-case generator. Given a user story and its acceptance criteria, generate comprehensive test cases.
+const SYSTEM_PROMPT = `You are a QA test-case generator. Given a user story and its numbered acceptance criteria, generate comprehensive test cases.
 
 Rules:
 - Generate 8 to 12 test cases, with at least 2 of each type
 - Cover happy path, negative cases, and edge cases (boundaries, empty/invalid input, limits, timing)
 - "type" must be exactly one of: "Happy Path", "Negative", "Edge Case"
-- Every acceptance criterion must map to at least one test case
+- "criteria" lists the numbers of the acceptance criteria the test case verifies
+- Every acceptance criterion must be verified by at least one test case
 - Test Case ID format: TC-[StoryID]-[two-digit number]
 - "steps" must be an array of strings
-- "coverage" lists every acceptance criterion from the story, verbatim, with the IDs of the test cases that verify it
 - Do not read, create or edit any files; answer directly
 - Return ONLY valid JSON, no other text, no markdown
 
@@ -23,17 +23,70 @@ Output JSON format:
       "testCaseId": "TC-001-01",
       "scenario": "short description",
       "type": "Happy Path",
+      "criteria": [1],
       "preconditions": "...",
       "steps": ["step 1", "step 2"],
       "testData": "...",
       "expectedResult": "...",
       "storyId": "001"
     }
-  ],
-  "coverage": [
-    { "criterion": "valid credentials grant access", "testCaseIds": ["TC-001-01"] }
   ]
 }`;
+
+const DEFAULT_STORY_ID = '001';
+
+// The user message sent to every provider: story plus numbered criteria.
+function formatPrompt({ storyId, story, criteria }) {
+  return [
+    `Story ID: ${storyId}`,
+    'User story:',
+    story,
+    'Acceptance criteria:',
+    ...criteria.map((c, i) => `${i + 1}. ${c}`)
+  ].join('\n');
+}
+
+// Split pasted criteria into one entry per line, dropping bullets and numbering.
+function parseCriteria(value) {
+  const lines = Array.isArray(value) ? value : String(value ?? '').split(/\r?\n/);
+  return lines
+    .map(line => String(line).replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean);
+}
+
+const MAX_STORY_LENGTH = 4000;
+const MAX_CRITERIA = 20;
+const MAX_CRITERION_LENGTH = 500;
+
+// Split a whole pasted story ("Story ID: ... / story text / Acceptance criteria: ...") into parts.
+function splitFullStory(text) {
+  const idMatch = text.match(/^\s*story\s*id\s*[:#-]?\s*(\S+)\s*$/im);
+  const withoutId = idMatch ? text.replace(idMatch[0], '') : text;
+  const [storyPart, ...criteriaParts] = withoutId.split(/^\s*acceptance\s+criteria\s*:?\s*$/im);
+  return { storyId: idMatch?.[1], story: storyPart, criteria: criteriaParts.join('\n') };
+}
+
+// Validate a /api/generate body into { storyId, story, criteria[] }. Throws with a user-facing message.
+// Accepts { storyId, story, criteria } (criteria as an array or newline text), or a legacy { userStory } blob.
+function parseGenerateRequest(body) {
+  const fields = typeof body?.story === 'string' || body?.criteria != null
+    ? body
+    : splitFullStory(typeof body?.userStory === 'string' ? body.userStory : '');
+
+  const story = typeof fields.story === 'string' ? fields.story.trim() : '';
+  const criteria = parseCriteria(fields.criteria);
+  // Story IDs end up in test case IDs, so keep them short and filename-safe.
+  const storyId = String(fields.storyId ?? '').trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20) || DEFAULT_STORY_ID;
+
+  if (!story) throw new Error('Please enter the user story.');
+  if (story.length > MAX_STORY_LENGTH) throw new Error(`User story is too long (max ${MAX_STORY_LENGTH} characters).`);
+  if (criteria.length === 0) throw new Error('Please add at least one acceptance criterion (one per line).');
+  if (criteria.length > MAX_CRITERIA) throw new Error(`Too many acceptance criteria (max ${MAX_CRITERIA}).`);
+  if (criteria.some(c => c.length > MAX_CRITERION_LENGTH)) {
+    throw new Error(`Each acceptance criterion must be under ${MAX_CRITERION_LENGTH} characters.`);
+  }
+  return { storyId, story, criteria };
+}
 
 const BOB_TIMEOUT_MS = 120_000;
 
@@ -137,7 +190,7 @@ function runBob(userStory, apiKey) {
       }
     });
 
-    child.stdin.end(`${SYSTEM_PROMPT}\n\nUser story:\n${userStory}\n`);
+    child.stdin.end(`${SYSTEM_PROMPT}\n\n${userStory}\n`);
   });
 }
 
@@ -289,29 +342,37 @@ function normalizeSteps(value) {
   return steps.map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
 }
 
+// Criterion numbers (1-based) a test case claims to verify, limited to ones that exist.
+function normalizeCriteriaRefs(value, criteriaCount) {
+  const refs = (Array.isArray(value) ? value : [value])
+    .map(v => parseInt(String(v).replace(/\D/g, ''), 10))
+    .filter(n => Number.isInteger(n) && n >= 1 && n <= criteriaCount);
+  return [...new Set(refs)].sort((a, b) => a - b);
+}
+
 // Coerce whatever the model returned into the exact shape the frontend expects.
-function normalize(raw) {
+// IDs are renumbered so they are unique and match TC-<storyId>-NN, and coverage is computed
+// from the user's own criteria list rather than trusted from the model.
+function normalize(raw, { storyId, criteria }) {
   const list = Array.isArray(raw?.testCases) ? raw.testCases : [];
   const testCases = list
     .filter(tc => tc && typeof tc === 'object')
     .map((tc, i) => ({
-      testCaseId: str(tc.testCaseId) || `TC-${String(i + 1).padStart(2, '0')}`,
+      testCaseId: `TC-${storyId}-${String(i + 1).padStart(2, '0')}`,
       scenario: str(tc.scenario),
       type: normalizeType(tc.type),
+      criteria: normalizeCriteriaRefs(tc.criteria, criteria.length),
       preconditions: str(tc.preconditions),
       steps: normalizeSteps(tc.steps),
       testData: str(tc.testData),
       expectedResult: str(tc.expectedResult),
-      storyId: str(tc.storyId)
+      storyId
     }));
 
-  const coverage = (Array.isArray(raw?.coverage) ? raw.coverage : [])
-    .filter(c => c && typeof c === 'object')
-    .map(c => ({
-      criterion: str(c.criterion),
-      testCaseIds: (Array.isArray(c.testCaseIds) ? c.testCaseIds : []).map(str).filter(Boolean)
-    }))
-    .filter(c => c.criterion);
+  const coverage = criteria.map((criterion, i) => ({
+    criterion,
+    testCaseIds: testCases.filter(tc => tc.criteria.includes(i + 1)).map(tc => tc.testCaseId)
+  }));
 
   return { testCases, coverage };
 }
@@ -332,15 +393,17 @@ function configuredProviders() {
 }
 
 // Try each provider in turn; the first usable answer wins. Throws if all fail.
-async function tryProviders(providers, userStory) {
+// `input` is { storyId, story, criteria[] }.
+async function tryProviders(providers, input) {
   if (providers.length === 0) throw new Error('No AI provider configured in backend/.env');
+  const prompt = formatPrompt(input);
   let lastError;
   for (const provider of providers) {
     try {
       // A provider returns the answer text, or { content, model } when the model used can vary.
-      const answer = await provider.call(userStory);
+      const answer = await provider.call(prompt);
       const content = typeof answer === 'string' ? answer : answer.content;
-      const result = normalize(parseJson(content));
+      const result = normalize(parseJson(content), input);
       if (result.testCases.length === 0) throw new Error('returned no test cases');
       return { ...result, provider: provider.name, model: answer.model ?? provider.model };
     } catch (err) {
@@ -351,8 +414,11 @@ async function tryProviders(providers, userStory) {
   throw lastError;
 }
 
-function generateTestCases(userStory) {
-  return tryProviders(configuredProviders(), userStory);
+function generateTestCases(input) {
+  return tryProviders(configuredProviders(), input);
 }
 
-module.exports = { generateTestCases, configuredProviders, tryProviders, normalize, parseJson, extractBobText };
+module.exports = {
+  generateTestCases, configuredProviders, tryProviders, normalize, parseJson, parseCriteria, parseGenerateRequest,
+  formatPrompt, extractBobText, DEFAULT_STORY_ID
+};

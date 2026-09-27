@@ -3,11 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const { generateTestCases, configuredProviders } = require('./llm');
+const { generateTestCases, configuredProviders, parseGenerateRequest } = require('./llm');
 const fallback = require('./fallback.json');
 
 const PORT = Number(process.env.PORT) || 3001;
-const MAX_STORY_LENGTH = 8000;
 const FRONTEND_DIST = path.join(__dirname, '..', 'frontend', 'dist');
 
 // Every AI run costs bobcoins / watsonx credits, so cap requests per visitor and parallel Bob runs.
@@ -40,12 +39,11 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/generate', async (req, res) => {
-  const userStory = typeof req.body?.userStory === 'string' ? req.body.userStory.trim() : '';
-  if (!userStory) {
-    return res.status(400).json({ error: 'Please paste a user story first.' });
-  }
-  if (userStory.length > MAX_STORY_LENGTH) {
-    return res.status(400).json({ error: `User story is too long (max ${MAX_STORY_LENGTH} characters).` });
+  let input;
+  try {
+    input = parseGenerateRequest(req.body);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
   }
   if (rateLimited(req.ip)) {
     return res.status(429).json({ error: 'Too many requests. Please wait a few minutes and try again.' });
@@ -56,7 +54,7 @@ app.post('/api/generate', async (req, res) => {
 
   activeBobRuns++;
   try {
-    res.json({ ...(await generateTestCases(userStory)), fallback: false });
+    res.json({ ...(await generateTestCases(input)), fallback: false });
   } catch (err) {
     // Keep the demo alive: serve a saved example instead of an error.
     console.error('Generation failed, serving fallback:', err.message);

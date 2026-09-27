@@ -1,6 +1,20 @@
 # AI Test-Case Generator
 
-Paste a user story with acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case) → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV.
+Enter a user story and its acceptance criteria → **IBM Bob** (with IBM watsonx.ai, Groq and Google Gemini as backups) generates test cases (Happy Path / Negative / Edge Case) → shown in a table with an acceptance-criteria coverage check → edit or delete rows → export to CSV.
+
+## Input
+
+Three fields: **Story ID** (optional, defaults to `001`), **User story**, and **Acceptance criteria** (one per line; bullets and numbering are stripped). The *Load example* menu fills in one of five sample stories.
+
+The AI is given the criteria as a numbered list and tags each test case with the numbers it verifies. The backend then:
+
+- renumbers test cases as `TC-<StoryID>-01`, `-02`, … so IDs are always unique and consistent
+- builds the coverage check from **your** criteria list, so a criterion no test case verifies shows as *Not covered* instead of being silently dropped
+
+API: `POST /api/generate` with `{ "storyId": "005", "story": "As a …", "criteria": ["…", "…"] }` (`criteria` may also be newline-separated text). A single `{ "userStory": "Story ID: …
+As a …
+Acceptance criteria:
+- …" }` blob is still accepted.
 
 ## How Bob is used
 
@@ -58,7 +72,7 @@ test-case-generator/
    ```
    Optionally add the watsonx.ai backup (see `.env.example`): `WATSONX_API_KEY`, `WATSONX_PROJECT_ID`, `WATSONX_URL`.
    The backend prints the active chain, e.g. `AI providers: bob -> watsonx -> saved example`.
-4. Open http://localhost:5173 and click **Load example**.
+4. Open http://localhost:5173 and pick a story from **Load example…**.
 
 ## Deploy to Railway
 

@@ -571,3 +571,82 @@ tr.editing select:focus {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ---------- Story input fields ---------- */
+
+.card-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.example-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.field {
+  margin-top: 14px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.field-short input {
+  max-width: 220px;
+}
+
+.field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: 14px/1.5 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  color: var(--text);
+}
+
+.field input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.field .hint {
+  margin-top: 4px;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9aa3b2;
+}
+
+.ac-num {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--other-soft);
+  color: var(--muted);
+  font: 600 12px 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+}
+
+.covers {
+  margin-top: 4px;
+  font: 11px 'IBM Plex Sans', system-ui, sans-serif;
+  color: var(--muted);
+  white-space: nowrap;
+}
