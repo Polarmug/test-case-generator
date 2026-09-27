@@ -86,6 +86,30 @@ test('normalize reads priority and reason, defaulting unclear values to Medium',
   assert.strictEqual(testCases[5].priorityReason, '');
 });
 
+test('normalize reads gaps and cleans them up', () => {
+  const { gaps } = normalize({
+    testCases: [],
+    gaps: [
+      { kind: 'Unclear', criterion: 2, title: 'Limit resets when?', questions: ['Midnight or rolling 24h?'], suggestion: 'limit resets at midnight' },
+      { kind: 'ambiguous', criterion: 9, title: 'Bad criterion number' }, // no such criterion -> Missing
+      { kind: 'Missing', criterion: 1, title: 'Own account', questions: 'Can I send to myself?\nWhat error?' },
+      { title: '', questions: [] }, // empty -> dropped
+      'garbage'
+    ]
+  }, input);
+  assert.deepStrictEqual(gaps, [
+    { kind: 'Unclear', criterion: 2, title: 'Limit resets when?', questions: ['Midnight or rolling 24h?'], suggestion: 'limit resets at midnight' },
+    { kind: 'Missing', criterion: null, title: 'Bad criterion number', questions: [], suggestion: '' },
+    { kind: 'Missing', criterion: null, title: 'Own account', questions: ['Can I send to myself?', 'What error?'], suggestion: '' }
+  ]);
+});
+
+test('normalize caps gaps at 5 and defaults to none', () => {
+  const many = Array.from({ length: 8 }, (_, i) => ({ kind: 'Missing', title: `gap ${i}` }));
+  assert.strictEqual(normalize({ testCases: [], gaps: many }, input).gaps.length, 5);
+  assert.deepStrictEqual(normalize({ testCases: [] }, input).gaps, []);
+});
+
 test('normalize handles missing testCases', () => {
   const empty = normalize({}, input);
   assert.deepStrictEqual(empty.testCases, []);

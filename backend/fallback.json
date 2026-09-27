@@ -204,5 +204,45 @@
         "TC-001-08"
       ]
     }
+  ],
+  "gaps": [
+    {
+      "kind": "Unclear",
+      "criterion": 3,
+      "title": "Lockout duration and unlock rules not defined",
+      "questions": [
+        "How long does the account stay locked?",
+        "Can the user unlock it (e.g. via email), or only an admin?"
+      ],
+      "suggestion": "a locked account unlocks automatically after 30 minutes or via an emailed unlock link"
+    },
+    {
+      "kind": "Unclear",
+      "criterion": 3,
+      "title": "\"5 failed attempts\" has no time window",
+      "questions": [
+        "Do the 5 attempts have to be in a row, or within a time period?",
+        "Does a successful login reset the count?"
+      ],
+      "suggestion": "the failed-attempt counter resets after a successful login"
+    },
+    {
+      "kind": "Missing",
+      "criterion": null,
+      "title": "No \"forgot password\" path",
+      "questions": [
+        "How does a user who forgot their password get back in?"
+      ],
+      "suggestion": "user can request a password reset link from the login page"
+    },
+    {
+      "kind": "Missing",
+      "criterion": null,
+      "title": "Error message wording not specified",
+      "questions": [
+        "Should the message reveal whether the username exists?"
+      ],
+      "suggestion": "login errors show the same message for a wrong username and a wrong password"
+    }
   ]
 }

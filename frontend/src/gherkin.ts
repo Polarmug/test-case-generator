@@ -12,11 +12,20 @@ export interface GherkinTestCase {
   expectedResult: string;
 }
 
+export interface GherkinGap {
+  kind: string;
+  criterion: number | null;
+  title: string;
+  questions: string[];
+  suggestion: string;
+}
+
 export interface GherkinInput {
   storyId: string;
   story: string;
   criteria: string[];
   testCases: GherkinTestCase[];
+  gaps?: GherkinGap[];
 }
 
 // Gherkin lines can't contain line breaks.
@@ -44,7 +53,7 @@ function featureTitle(story: string): string {
   return action.charAt(0).toUpperCase() + action.slice(1);
 }
 
-export function toGherkin({ storyId, story, criteria, testCases }: GherkinInput): string {
+export function toGherkin({ storyId, story, criteria, testCases, gaps = [] }: GherkinInput): string {
   const title = featureTitle(story);
   const lines: string[] = [`Feature: Story ${storyId}${title ? ` - ${title}` : ''}`];
   if (story.trim()) lines.push(`  ${oneLine(story)}`);
@@ -52,6 +61,16 @@ export function toGherkin({ storyId, story, criteria, testCases }: GherkinInput)
   if (criteria.length > 0) {
     lines.push('', '  # Acceptance criteria:');
     criteria.forEach((c, i) => lines.push(`  #   AC${i + 1}: ${oneLine(c)}`));
+  }
+
+  if (gaps.length > 0) {
+    lines.push('', '  # Story review: open questions for the product owner');
+    for (const gap of gaps) {
+      const ref = gap.criterion ? ` (AC${gap.criterion})` : '';
+      lines.push(`  #   [${gap.kind}]${ref} ${oneLine(gap.title)}`);
+      gap.questions.forEach(q => lines.push(`  #     ? ${oneLine(q)}`));
+      if (gap.suggestion) lines.push(`  #     Suggested: ${oneLine(gap.suggestion)}`);
+    }
   }
 
   for (const tc of testCases) {

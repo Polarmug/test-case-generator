@@ -38,9 +38,19 @@ interface Coverage {
   testCaseIds: string[];
 }
 
+// Story review finding: an existing criterion that is ambiguous, or something the story doesn't cover.
+interface Gap {
+  kind: 'Unclear' | 'Missing';
+  criterion: number | null; // 1-based; set for Unclear gaps
+  title: string;
+  questions: string[];
+  suggestion: string;
+}
+
 interface GenerateResponse {
   testCases: TestCase[];
   coverage: Coverage[];
+  gaps?: Gap[];
   provider: string;
   model: string;
   fallback: boolean;
@@ -176,7 +186,13 @@ const slug = (text: string) => text.toLowerCase().replace(/\s+/g, '-');
 
 const criteriaLabel = (refs: number[]) => refs.map(n => `AC${n}`).join(', ');
 
+type Theme = 'light' | 'dark';
+
+// index.html sets data-theme before the first paint (saved choice, else the system setting).
+const initialTheme = (): Theme => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+
 function App() {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const [storyId, setStoryId] = useState('');
   const [story, setStory] = useState('');
   const [criteriaText, setCriteriaText] = useState('');
@@ -189,6 +205,7 @@ function App() {
   const [elapsed, setElapsed] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [lastDeleted, setLastDeleted] = useState<{ testCase: TestCase; index: number; coverage: Coverage[] } | null>(null);
+  const [addedGaps, setAddedGaps] = useState<number[]>([]); // indexes of gaps whose suggestion was added
 
   const criteriaList = parseCriteria(criteriaText);
   const canGenerate = !loading && story.trim() !== '' && criteriaList.length > 0;
@@ -199,6 +216,18 @@ function App() {
     setStoryId(example.storyId);
     setStory(example.story);
     setCriteriaText(example.criteria.join('\n'));
+  };
+
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+    // Only an explicit choice is saved, so the system setting keeps applying until the user picks one.
+    try {
+      localStorage.setItem('theme', next);
+    } catch {
+      // Storage can be blocked (private mode); the toggle still works for this visit.
+    }
   };
 
   const onCtrlEnter = (e: React.KeyboardEvent) => {
@@ -218,6 +247,18 @@ function App() {
   const coveredCount = coverage.filter(c => c.testCaseIds.length > 0).length;
   const countOf = (type: TestType) => testCases.filter(tc => tc.type === type).length;
   const highCount = testCases.filter(tc => tc.priority === 'High').length;
+  const gaps = result?.gaps ?? [];
+
+  // Append a gap's suggested criterion to the criteria box so the next Generate covers it.
+  const addGapToCriteria = (gapIndex: number) => {
+    const suggestion = gaps[gapIndex]?.suggestion.trim();
+    if (!suggestion) return;
+    const alreadyThere = criteriaList.some(c => c.toLowerCase() === suggestion.toLowerCase());
+    if (!alreadyThere) {
+      setCriteriaText(prev => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n${suggestion}` : suggestion));
+    }
+    setAddedGaps(prev => (prev.includes(gapIndex) ? prev : [...prev, gapIndex]));
+  };
 
   const generate = async () => {
     if (!canGenerate) return;
@@ -236,6 +277,7 @@ function App() {
         criteria: criteriaList
       });
       setResult(res.data);
+      setAddedGaps([]);
       setElapsed((performance.now() - started) / 1000);
     } catch (err) {
       const message = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
@@ -321,7 +363,8 @@ function App() {
       storyId: resultStoryId,
       story: result?.story ?? '',
       criteria: coverage.map(c => c.criterion),
-      testCases: byPriority(testCases)
+      testCases: byPriority(testCases),
+      gaps
     });
     downloadFile(feature, `test-cases-${resultStoryId}.feature`, 'text/plain;charset=utf-8');
   };
@@ -333,12 +376,21 @@ function App() {
           <h1>AI Test-Case Generator</h1>
           <p className="tagline">Turn a user story into ready-to-run test cases in seconds.</p>
         </div>
-        {result && (
-          <span className="provider">
-            Powered by {PROVIDER_LABELS[result.provider] ?? result.provider}
-            {result.model && <span className="muted"> · {result.model}</span>}
-          </span>
-        )}
+        <div className="header-right">
+          {result && (
+            <span className="provider">
+              Powered by {PROVIDER_LABELS[result.provider] ?? result.provider}
+              {result.model && <span className="muted"> · {result.model}</span>}
+            </span>
+          )}
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+        </div>
       </header>
 
       <section className="card">
@@ -445,6 +497,64 @@ function App() {
             </button>
             {!result?.fallback && <span className="elapsed">Generated in {elapsed.toFixed(1)}s</span>}
           </section>
+
+          {gaps.length > 0 && (
+            <section className="card gaps-card">
+              <h2>
+                Story review
+                <span className="gap-count">
+                  {gaps.length} {gaps.length === 1 ? 'gap' : 'gaps'} found
+                </span>
+              </h2>
+              <p className="gaps-intro">
+                Unclear or missing acceptance criteria. Add a suggestion to your criteria, then generate again to cover it.
+              </p>
+              <ul className="gaps">
+                {gaps.map((gap, i) => {
+                  const added = addedGaps.includes(i);
+                  const criterionText = gap.criterion ? coverage[gap.criterion - 1]?.criterion : undefined;
+                  return (
+                    <li key={i} className="gap">
+                      <div className="gap-head">
+                        <span className={`gap-kind gap-kind-${gap.kind.toLowerCase()}`}>{gap.kind}</span>
+                        {gap.criterion && <span className="ac-num">AC{gap.criterion}</span>}
+                        <strong className="gap-title">{gap.title}</strong>
+                      </div>
+                      {criterionText && <div className="gap-criterion">“{criterionText}”</div>}
+                      {gap.questions.length > 0 && (
+                        <ul className="gap-questions">
+                          {gap.questions.map((q, qi) => <li key={qi}>{q}</li>)}
+                        </ul>
+                      )}
+                      {gap.suggestion && (
+                        <div className="gap-suggestion">
+                          <div>
+                            <span className="gap-suggestion-label">Suggested criterion</span>
+                            {gap.suggestion}
+                          </div>
+                          <button
+                            className={added ? 'ghost small' : 'secondary small'}
+                            onClick={() => addGapToCriteria(i)}
+                            disabled={added || loading}
+                          >
+                            {added ? '✓ Added' : '+ Add to criteria'}
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {addedGaps.length > 0 && (
+                <div className="gaps-next">
+                  {addedGaps.length} {addedGaps.length === 1 ? 'criterion' : 'criteria'} added to your story.
+                  <button className="link-btn" onClick={generate} disabled={!canGenerate}>
+                    Generate again
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
 
           {coverage.length > 0 && (
             <section className="card">

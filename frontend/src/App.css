@@ -21,6 +21,12 @@
   --warn-border: #f1c96b;
   --highlight: #fff8c4;
 
+  --on-accent: #ffffff;
+  --priority-high-bg: #c62828;
+  --error-border: #f3b5b5;
+  --info-border: #b8cffd;
+  --placeholder: #9aa3b2;
+
   font-family: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -166,7 +172,7 @@ textarea:focus {
 
 .primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: 1px solid var(--accent);
 }
 
@@ -226,7 +232,7 @@ textarea:focus {
 .banner-error {
   background: var(--negative-soft);
   color: var(--negative);
-  border: 1px solid #f3b5b5;
+  border: 1px solid var(--error-border);
 }
 
 .banner-warn {
@@ -483,7 +489,7 @@ tbody tr.highlight {
   gap: 12px;
   background: var(--accent-soft);
   color: var(--text);
-  border: 1px solid #b8cffd;
+  border: 1px solid var(--info-border);
 }
 
 .actions-col {
@@ -636,7 +642,7 @@ tr.editing select:focus {
 
 input::placeholder,
 textarea::placeholder {
-  color: #9aa3b2;
+  color: var(--placeholder);
 }
 
 .ac-num {
@@ -843,8 +849,8 @@ textarea::placeholder {
 
 /* Solid for High so it stands out from the soft type badges. */
 .priority-high {
-  background: var(--negative);
-  color: #fff;
+  background: var(--priority-high-bg);
+  color: var(--on-accent);
 }
 
 .priority-medium {
@@ -886,5 +892,209 @@ tr.editing select + .field-label {
 
   tr.editing td.type-cell {
     display: block;
+  }
+}
+
+/* ---------- Dark mode ---------- */
+
+:root {
+  color-scheme: light;
+}
+
+/* Set on <html> by the script in index.html (system setting or saved choice) and by the toggle. */
+:root[data-theme="dark"] {
+  color-scheme: dark; /* dark native controls: select menus, scrollbars */
+
+  --bg: #12151c;
+  --surface: #1c212b;
+  --text: #e6e9ef;
+  --muted: #9aa4b5;
+  --border: #2e3544;
+  --accent: #4589ff;
+  --accent-hover: #6ea2ff;
+  --accent-soft: #1a2a4a;
+
+  --happy: #42be65;
+  --happy-soft: #173323;
+  --negative: #ff7b7b;
+  --negative-soft: #3a1c1f;
+  --edge: #f1c21b;
+  --edge-soft: #3a2f10;
+  --other: #a8b0bf;
+  --other-soft: #2a303c;
+
+  --warn-soft: #3a2f10;
+  --warn-border: #8a6d1a;
+  --highlight: #4a4212;
+
+  --on-accent: #ffffff;
+  --priority-high-bg: #da1e28;
+  --error-border: #6b2a2e;
+  --info-border: #2c4a80;
+  --placeholder: #6b7486;
+}
+
+/* Form controls otherwise keep the browser's white background in dark mode. */
+input,
+textarea,
+select {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.theme-toggle {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Story review (gaps) ---------- */
+
+.gaps-card {
+  border-left: 4px solid var(--edge);
+}
+
+.gap-count {
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--edge);
+}
+
+.gaps-intro {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.gaps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gap {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.gap:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.gap-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gap-kind {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gap-kind-unclear {
+  background: var(--edge-soft);
+  color: var(--edge);
+}
+
+.gap-kind-missing {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.gap-title {
+  font-size: 15px;
+}
+
+.gap-criterion {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.gap-questions {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.gap-questions li + li {
+  margin-top: 2px;
+}
+
+.gap-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.gap-suggestion-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.gap-suggestion button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.gaps-next {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .gap-suggestion {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gap-suggestion button {
+    padding: 9px 12px;
+    font-size: 14px;
   }
 }

@@ -16,6 +16,12 @@ Rules:
 - "criteria" lists the numbers of the acceptance criteria the test case verifies
 - Every acceptance criterion must be verified by at least one test case
 - Test Case ID format: TC-[StoryID]-[two-digit number]
+- Also review the story like a senior QA engineer and list up to 5 "gaps", most important first:
+  "Unclear" = an existing criterion that can be read more than one way (set "criterion" to its number);
+  "Missing" = something the story should specify but doesn't (set "criterion" to null).
+  Each gap has a short "title", 1-3 "questions" to ask the product owner, and a "suggestion":
+  one new or clarified acceptance criterion, written as a single line like the user's criteria.
+  If the story is complete, return an empty "gaps" array
 - "steps" must be an array of strings
 - Do not read, create or edit any files; answer directly
 - Return ONLY valid JSON, no other text, no markdown
@@ -35,6 +41,15 @@ Output JSON format:
       "testData": "...",
       "expectedResult": "...",
       "storyId": "001"
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "Unclear",
+      "criterion": 3,
+      "title": "Lockout duration not defined",
+      "questions": ["How long does the account stay locked?", "Who can unlock it?"],
+      "suggestion": "a locked account unlocks automatically after 30 minutes"
     }
   ]
 }`;
@@ -356,6 +371,25 @@ function normalizeSteps(value) {
   return steps.map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
 }
 
+const MAX_GAPS = 5;
+
+// Story review from the model: unclear or missing acceptance criteria, each with questions and a suggested criterion.
+function normalizeGaps(value, criteriaCount) {
+  return (Array.isArray(value) ? value : [])
+    .filter(g => g && typeof g === 'object')
+    .map(g => {
+      const criterion = normalizeCriteriaRefs(g.criterion, criteriaCount)[0] ?? null;
+      const kind = /unclear|ambiguous|vague/i.test(str(g.kind)) && criterion !== null ? 'Unclear' : 'Missing';
+      const questions = (Array.isArray(g.questions) ? g.questions : str(g.questions).split(/\r?\n/))
+        .map(str)
+        .filter(Boolean)
+        .slice(0, 3);
+      return { kind, criterion: kind === 'Unclear' ? criterion : null, title: str(g.title), questions, suggestion: str(g.suggestion) };
+    })
+    .filter(g => g.title || g.questions.length > 0)
+    .slice(0, MAX_GAPS);
+}
+
 // Criterion numbers (1-based) a test case claims to verify, limited to ones that exist.
 function normalizeCriteriaRefs(value, criteriaCount) {
   const refs = (Array.isArray(value) ? value : [value])
@@ -390,7 +424,7 @@ function normalize(raw, { storyId, criteria }) {
     testCaseIds: testCases.filter(tc => tc.criteria.includes(i + 1)).map(tc => tc.testCaseId)
   }));
 
-  return { testCases, coverage };
+  return { testCases, coverage, gaps: normalizeGaps(raw?.gaps, criteria.length) };
 }
 
 const PROVIDERS = {
